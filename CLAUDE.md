@@ -17,6 +17,12 @@ Prototype d'origine : artifact claude.ai `c1848a2b-d5ee-4eec-a59e-ab274f8f8ba5` 
 - `countries-50m.json` (world-atlas 2.0.2) : compter les pays traversés (d3 + topojson chargés à la demande).
 - `vercel.json` : `/v/<code>` → `index.html` (lien public d'un voyage).
 
+## Interface (piste B « Carnet photo », choisie le 17/11/2026)
+- Maquettes de référence : canvas Design « Escale — 3 pistes d'interface » (slug `d8cd1107-d1b5-4672-9581-a4c3df5d41c5`), piste B.
+- Couleurs : blanc, bleu canard `#0F3D3E` (encre), jaune soleil `#FFC43D`, corail `#FF6A4D` (accent), fond doux `#F1F6F5`. Police Plus Jakarta Sans. Thème sombre automatique.
+- Navigation : barre en bas `bottomNav()` — Voyage (programme + réservations), Aujourd'hui (jour J + What now), bouton central corail (feuille « Ajouter » : étape, adresse, réservation), Adresses, Carnet (carte + étapes / Noter / Récap). `S.tab` ∈ voyage|today|adresses|carnet.
+- Chaque onglet s'ouvre sur une grande image (`.hero`) : photo de la journée (dernière photo d'étape ou d'adresse), sinon illustration générée (`coverSVG`) ; carte Leaflet en tête du Carnet et de la page partagée. Le contenu glisse par-dessus sur une feuille arrondie (`.sheet`). La pastille en haut à gauche ramène à la liste des voyages.
+
 ## Identité sans compte
 - Au premier lancement : `id` (12) + `secret` (28) aléatoires dans `localStorage` (`escale.me`).
 - Réglages → « code de récupération » `id-secret` pour retrouver ses voyages sur un autre appareil.
