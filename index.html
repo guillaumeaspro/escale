@@ -360,7 +360,7 @@ function renderVoyage(t){const[l,c]=phaseLabel(t),r=route(t);
  const top=`<section class="hero"${''}>${coverHTML(t,'')}<div class="bar">${tripPill(t,true)}<button class="pill" data-a="editTrip">Modifier</button></div>
  <div class="ttl"><div>${esc(fmtD(t.start,{weekday:undefined}))} → ${esc(fmtD(t.end,{weekday:undefined,year:'numeric'}))} · ${days(t).length} jours</div><h1>${esc(t.name)}</h1></div></section>
  <div class="sheet">${r.length>1?`<div class="route" style="color:var(--ink)">${r.map(x=>`<div class="stop">${esc(x)}</div>`).join('')}</div>`:''}
- <div class="stats"><div><b>${days(t).length}</b><span>jours</span></div><div><b>${(t.bookings||[]).length}</b><span>réservations</span></div><div><b>${(t.places||[]).length}</b><span>adresses</span></div><div><b style="color:var(--red)">${esc(c)}</b><span>${esc(l.toLowerCase())}</span></div></div>`;
+ <div class="stats"><div><b>${days(t).length}</b><span>jours</span></div><div><b>${(t.bookings||[]).length}</b><span>réservations</span></div><div><b>${(t.places||[]).length}</b><span>adresses</span></div><div><b style="color:var(--red)">${esc(c)}</b><span>${esc(l.toLowerCase())}</span></div></div>${phase(t)!=='apres'?gapsHTML(t):''}`;
  return top+renderPrep(t)+'</div>'}
 function renderPrep(t){const subs=[['prog','Programme'],['bk','Réservations']];if(!['prog','bk'].includes(S.sub))S.sub='prog';
  let h=`<div class="subs">${subs.map(([k,n])=>`<button class="chip" aria-pressed="${S.sub===k}" data-a="sub" data-v="${k}">${n}</button>`).join('')}</div>`;
@@ -568,8 +568,8 @@ function memoForm(t,p){const html=`<p class="mute" style="margin:0">${esc(CATS[p
  openModal(esc(p.name),html,fd=>{Object.assign(p,{visited:!!fd.get('visited'),visitedOn:fd.get('on'),rating:+fd.get('rating')||0,fav:!!fd.get('fav'),comment:fd.get('comment').trim(),photos:M.files||p.photos||[]});save(t);toast('Souvenir enregistré')})}
 function ticketView(t,b){$('#md').innerHTML=`<header><h2>${esc(bTitle(b))}</h2><button type="button" class="x" data-a="close" aria-label="Fermer">×</button></header>
  <div class="ticket"><div class="mute">${esc(BT[b.type])}${b.date?' · '+cap(fmtD(b.date,{month:'long'})):''}${b.time?' · '+esc(b.time):''}</div>${b.ref?`<div class="ref">${esc(b.ref)}</div><div class="mute">référence</div>`:''}${b.type==='hotel'&&b.endDate?`<p>Jusqu’au ${fmtD(b.endDate,{month:'long'})}${b.endTime?' '+esc(b.endTime):''}</p>`:''}</div>
- ${b.address?`<p><b>Adresse</b><br>${esc(b.address)}</p>`:''}${b.note?`<p style="white-space:pre-wrap">${esc(b.note)}</p>`:''}<div class="files">${(b.files||[]).map(f=>(f.type||'').startsWith('image')?`<img src="${esc(fileUrl(f))}" alt="${esc(f.name)}">`:`<a href="${esc(fileUrl(f))}" target="_blank" rel="noopener">Ouvrir ${esc(f.name||'le billet')}</a>`).join('')}</div>
- <div class="foot"><button class="btn p" data-a="editBk" data-v="${b.id}">Modifier</button>${hasG(b)||b.address?`<a class="btn g" href="${mapsUrl(b)}" target="_blank" rel="noopener">Itinéraire</a>`:''}<button class="btn g" data-a="close">Fermer</button></div>`;$('#ov').classList.add('on')}
+ ${b.address?`<p><b>Adresse</b><br>${esc(b.address)}</p>`:''}${(b.tips||[]).length?`<div class="card" style="margin:12px 0"><b>Conseils pratiques</b>${b.tips.map(x=>`<div style="margin-top:8px"><b style="font-size:14px">${esc(x.title)}</b><div style="font-size:14px">${esc(x.text)}</div></div>`).join('')}<div class="hint">Conseils de l’IA, à vérifier sur place.</div></div>`:''}${b.note?`<p style="white-space:pre-wrap">${esc(b.note)}</p>`:''}<div class="files">${(b.files||[]).map(f=>(f.type||'').startsWith('image')?`<img src="${esc(fileUrl(f))}" alt="${esc(f.name)}">`:`<a href="${esc(fileUrl(f))}" target="_blank" rel="noopener">Ouvrir ${esc(f.name||'le billet')}</a>`).join('')}</div>
+ <div class="foot"><button class="btn p" data-a="editBk" data-v="${b.id}">Modifier</button>${S.sample&&b.type==='hotel'&&(b.address||b.city)?`<button class="btn r" data-a="around" data-v="${b.id}">Autour du logement</button>`:''}${S.sample&&TRANSP.includes(b.type)&&!(b.tips||[]).length?`<button class="btn r" data-a="tips" data-v="${b.id}">Conseils pratiques</button>`:''}${hasG(b)||b.address?`<a class="btn g" href="${mapsUrl(b)}" target="_blank" rel="noopener">Itinéraire</a>`:''}<button class="btn g" data-a="close">Fermer</button></div>`;$('#ov').classList.add('on')}
 
 /* ---------- Claude ---------- */
 async function aiCall(b){const r=await api('/api/ai',Object.assign({id:ME.id},b));return r.json}
@@ -622,7 +622,46 @@ function importReview(){const im=M.imp;if(!im)return;const files=im.files,bks=im
    if(b.type==='hotel'&&b.city&&b.date){t.dayCity=t.dayCity||{}}});
   const out=keep.map(b=>b.date).filter(d=>d&&(d<t.start||d>t.end));
   save(t);M.imp=null;S.tripId=t.id;S.view='trip';S.tab='voyage';S.sub='bk';toast(keep.length>1?keep.length+' réservations ajoutées':'Réservation ajoutée');
-  if(out.length)setTimeout(()=>toast('Attention : une date tombe hors des dates du voyage.'),2900)})}
+  if(out.length)setTimeout(()=>toast('Attention : une date tombe hors des dates du voyage.'),2900);
+  const added=t.bookings.slice(-keep.length);
+  if(S.sample){Promise.all(added.filter(b=>TRANSP.includes(b.type)).map(b=>tipsFor(t,b))).then(r=>{if(r.some(Boolean)){toast('Conseils pratiques ajoutés à ton billet');if(S.view==='trip'&&!$('#ov').classList.contains('on'))render()}});
+   const h=added.find(b=>b.type==='hotel'&&(b.address||b.city));if(h)setTimeout(()=>aroundModal(t,h,true),120)}})}
+
+/* ---------- recommandations : autour du logement, conseils de trajet, trous du voyage ---------- */
+const TRANSP=['vol','train','bus','bateau'];
+function stayBefore(t,d){return(t.bookings||[]).filter(b=>b.type==='hotel'&&b.date&&b.date<=d).sort((a,b)=>a.date<b.date?1:-1)[0]||null}
+function stayAfter(t,d){return(t.bookings||[]).filter(b=>b.type==='hotel'&&b.date&&b.date>=d).sort((a,b)=>a.date<b.date?-1:1)[0]||null}
+const staySum=b=>b?{title:b.title||'',address:b.address||'',city:b.city||''}:null;
+function gaps(t){const out=[],bk=t.bookings||[],ds=days(t);if(ds.length<2)return out;
+ const nightOk=d=>!!hotelNight(t,d)||bk.some(b=>TRANSP.includes(b.type)&&(b.date===d&&((b.time||'')>='18:00'||(b.endDate&&b.endDate>d))||(b.date<d&&b.endDate&&b.endDate>d)));
+ const miss=ds.slice(0,-1).filter(d=>!nightOk(d)&&!(d===ds[0]&&bk.some(b=>TRANSP.includes(b.type)&&b.date===d)));
+ // nuits consécutives regroupées
+ for(let i=0;i<miss.length;i++){let j=i;while(j+1<miss.length&&diffDays(miss[j],miss[j+1])===1)j++;out.push({k:'night',d:miss[i],n:j-i+1,txt:j>i?`Aucun logement du ${fmtD(miss[i],{weekday:undefined})} au ${fmtD(addDays(miss[j],1),{weekday:undefined})} (${j-i+1} nuits)`:`Aucun logement pour la nuit du ${fmtD(miss[i],{month:'long'})}`});i=j}
+ const st=bk.filter(b=>b.type==='hotel'&&b.date&&b.city).sort((a,b)=>a.date<b.date?-1:1);
+ for(let i=1;i<st.length;i++){const a=st[i-1],b=st[i];if(a.city.trim().toLowerCase()===b.city.trim().toLowerCase())continue;const from=a.endDate||b.date,to=b.date;
+  const lo=from<to?from:to,hi=from<to?to:from;const ok=bk.some(x=>TRANSP.includes(x.type)&&x.date&&x.date>=addDays(lo,-1)&&x.date<=hi);
+  if(!ok)out.push({k:'move',d:lo,txt:`Rien ne te mène de ${a.city} à ${b.city} (${fmtD(lo,{weekday:undefined})})`})}
+ const last=st[st.length-1],ret=bk.some(b=>TRANSP.includes(b.type)&&b.date&&b.date>=addDays(t.end,-1));
+ if(bk.length&&!ret)out.push({k:'back',d:t.end,txt:`Pas encore de trajet retour vers le ${fmtD(t.end,{month:'long'})}`});
+ return out.sort((a,b)=>a.d<b.d?-1:1)}
+function gapsHTML(t){const g=gaps(t);if(!g.length)return'';
+ return`<div class="card" style="background:var(--sun);color:var(--teal);margin-top:0"><b style="font-size:16px">À organiser</b>${g.map(x=>`<div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid rgba(15,61,62,.15);margin-top:6px"><span style="flex:1;font-size:14px;font-weight:600">${esc(x.txt)}</span><button class="btn s" style="border-color:var(--teal);color:var(--teal)" data-a="importBk">Importer</button></div>`).join('')}</div>`}
+async function aroundModal(t,b,auto){if(!S.sample)return;
+ const draw=()=>{const it=b.around||[];return`<p class="mute" style="margin-top:0">Près de <b>${esc(b.title||b.city||'ton logement')}</b>${b.address?' · '+esc(b.address):''}. Coche ce qui te tente : ça part dans ta wishlist et dans « What now ? ».</p>
+  ${it.length?it.map((x,i)=>`<label class="card" style="display:grid;grid-template-columns:24px minmax(0,1fr);gap:10px;margin:8px 0;cursor:pointer"><input type="checkbox" name="a${i}" style="width:22px;min-height:22px;margin-top:3px"${(t.places||[]).some(p=>p.name===x.name)?' disabled':''}><span><b style="display:block">${esc(x.name)}</b><small class="mute">${esc((CATS[x.cat]||CATS.autre).l)}${x.area?' · '+esc(x.area):''}${x.walk?' · '+Math.round(x.walk)+' min à pied':''}</small>${x.why?`<small style="display:block">${esc(x.why)}</small>`:''}</span></label>`).join(''):'<p class="load" id="arl">Recherche d’adresses autour du logement…</p>'}
+  <p class="hint">Suggestions de l’IA : vérifie horaires et avis avant d’y aller.</p>`};
+ openModal('Autour de ton logement',draw(),fd=>{const it=b.around||[];let n=0;t.places=t.places||[];it.forEach((x,i)=>{if(fd.get('a'+i)){t.places.push({id:rid(),name:x.name,cat:CATS[x.cat]?x.cat:'autre',city:b.city||'',area:x.area||'',lat:typeof x.lat==='number'?x.lat:null,lng:typeof x.lng==='number'?x.lng:null,status:'envie',note:x.why||''});n++}});
+  if(n){save(t);toast(n+' adresse'+(n>1?'s':'')+' ajoutée'+(n>1?'s':'')+' à ta wishlist')}});
+ const sb=$('#mf .foot .btn.p');if(sb)sb.textContent='Ajouter à ma wishlist';
+ if(b.around&&b.around.length)return;
+ try{const r=await aiCall({kind:'around',title:b.title,address:b.address,city:b.city,dest:t.dest||t.name,prefs:lsGet('escale.prefs',''),exclude:(t.places||[]).map(p=>p.name)});
+  b.around=((r&&r.items)||[]).filter(x=>x&&x.name).slice(0,8).map(x=>({name:String(x.name).slice(0,80),cat:CATS[x.cat]?x.cat:'autre',area:String(x.area||'').slice(0,60),lat:typeof x.lat==='number'?x.lat:null,lng:typeof x.lng==='number'?x.lng:null,walk:+x.walk||0,why:String(x.why||'').slice(0,200)}));
+  if(r&&r.home&&typeof r.home.lat==='number'&&typeof r.home.lng==='number'&&!hasG(b)){b.lat=+r.home.lat.toFixed(5);b.lng=+r.home.lng.toFixed(5);b.geoApprox=true}
+  save(t);if($('#arl')){const f=$('#mf');const body=draw();f.querySelectorAll('.card,.load,p.mute,.hint').forEach(e=>e.remove());f.querySelector('header').insertAdjacentHTML('afterend',body);if(!b.around.length)f.querySelector('header').insertAdjacentHTML('afterend','<p>Pas de suggestion fiable trouvée autour de ce logement.</p>')}}
+ catch(e){const l=$('#arl');if(l)l.textContent=e.status===429?'Trop de demandes : réessaie dans une minute.':'Suggestions indisponibles pour le moment.'}}
+async function tipsFor(t,b){if(!S.sample||!TRANSP.includes(b.type))return false;
+ try{const r=await aiCall({kind:'tips',type:BT[b.type],title:b.title,from:b.from,to:b.to,date:b.date,time:b.time,endDate:b.endDate,endTime:b.endTime,prevStay:staySum(stayBefore(t,b.date||t.start)),nextStay:staySum(stayAfter(t,b.endDate||b.date||t.start)),dest:t.dest||t.name});
+  const tips=((r&&r.tips)||[]).filter(x=>x&&x.text).slice(0,5).map(x=>({title:String(x.title||'').slice(0,60),text:String(x.text).slice(0,300)}));if(!tips.length)return false;b.tips=tips;save(t);return true}catch(e){return false}}
 
 /* ---------- partage ---------- */
 const shareUrl=c=>location.origin+'/v/'+c;
@@ -733,6 +772,8 @@ const A={
  addPlace(){placeForm(T())},addToDay(v){placeForm(T(),null,{date:v,time:''})},
  editPlace(v){const p=T().places.find(x=>x.id===v);if(p)placeForm(T(),p)},
  delPlace(v){const b=$('#md [data-a=delPlace]');if(!b.dataset.ok){b.dataset.ok=1;b.textContent='Confirmer';b.classList.add('r');return}const t=T();t.places=t.places.filter(x=>x.id!==v);save(t);closeModal();render()},
+ around(v){const t=T(),b=t&&t.bookings.find(x=>x.id===v);if(b)aroundModal(t,b)},
+ async tips(v,btn){const t=T(),b=t&&t.bookings.find(x=>x.id===v);if(!b)return;btn.disabled=true;btn.textContent='Recherche…';const ok=await tipsFor(t,b);if(ok)ticketView(t,b);else{btn.disabled=false;btn.textContent='Conseils pratiques';toast('Conseils indisponibles pour le moment.')}},
  addBk(){if(!T()){toast('Ouvre d’abord un voyage.');return}bkForm(T())},importBk(){importForm()},editBk(v){const b=T().bookings.find(x=>x.id===v);if(b)bkForm(T(),b)},
  delBk(v){const b=$('#md [data-a=delBk]');if(!b.dataset.ok){b.dataset.ok=1;b.textContent='Confirmer';b.classList.add('r');return}const t=T();t.bookings=t.bookings.filter(x=>x.id!==v);save(t);closeModal();render()},
  ticket(v){const b=T().bookings.find(x=>x.id===v);if(b)ticketView(T(),b)},

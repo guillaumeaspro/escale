@@ -62,6 +62,27 @@ Préférences : ${s(b.prefs, 200) || "aucune"}.
 Propose 5 ${KINDS[b.want] || KINDS.all} réels et connus, habituellement ouverts à ce moment, à moins de 20 minutes à pied si possible. Exclus : ${exclude || "rien"}.
 Réponds uniquement en JSON : {"items":[{"name":"","cat":"resto|bar|boutique|visite|activite|autre","area":"quartier","lat":nombre,"lng":nombre,"why":"une phrase en français"}]}. N'invente pas de lieu : si tu n'es pas sûr, propose-en moins.`;
   }
+  if (b.kind === "around") {
+    const where = [s(b.title, 80), s(b.address, 200), s(b.city, 60)].filter(Boolean).join(", ");
+    if (!where) return null;
+    const exclude = (Array.isArray(b.exclude) ? b.exclude : []).slice(0, 60).map((x) => s(x, 60)).join(", ");
+    return `Une personne loge ici pendant son voyage : ${where} (voyage : ${s(b.dest, 100)}).
+Préférences : ${s(b.prefs, 200) || "aucune"}.
+1) Donne la position approximative de ce logement.
+2) Propose 8 adresses réelles et connues à moins de 15 minutes à pied si possible : un mélange de restaurants ou street food, cafés, bars, visites, marchés ou balades. Exclus : ${exclude || "rien"}.
+Réponds uniquement en JSON : {"home":{"lat":nombre,"lng":nombre},"items":[{"name":"","cat":"resto|bar|boutique|visite|activite|autre","area":"quartier","lat":nombre,"lng":nombre,"walk":minutes à pied estimées,"why":"une phrase en français : ce qu'on y fait ou y mange"}]}.
+N'invente pas de lieu : si tu n'es pas sûr, propose-en moins. Si tu ne situes pas le logement, mets "home":null.`;
+  }
+  if (b.kind === "tips") {
+    const stay = (x) => (x && typeof x === "object" ? [s(x.title, 80), s(x.address, 200), s(x.city, 60)].filter(Boolean).join(", ") : "");
+    return `Donne des conseils pratiques pour ce trajet de voyage : ${s(b.type, 20)} ${s(b.title, 80)}, de ${s(b.from, 80)} à ${s(b.to, 80)}, le ${s(b.date, 10)} à ${s(b.time, 5) || "heure inconnue"}${b.endDate ? ", arrivée le " + s(b.endDate, 10) + " " + s(b.endTime, 5) : ""}.
+Logement avant le départ : ${stay(b.prevStay) || "inconnu"}. Logement à l'arrivée : ${stay(b.nextStay) || "inconnu"}. Voyage : ${s(b.dest, 100)}.
+Réponds uniquement en JSON : {"tips":[{"title":"titre court","text":"1 ou 2 phrases en français"}]} avec 3 à 5 conseils, dans cet ordre si pertinent :
+- comment rejoindre le logement à l'arrivée (moyen, durée, ordre de prix en monnaie locale précédé de « environ ») ;
+- à quelle heure partir ou arriver à la gare / l'aéroport (marge conseillée) ;
+- ce qu'il ne faut pas oublier (enregistrement en ligne, visa ou formalités, bagages, change, carte SIM).
+Reste général quand tu n'es pas sûr d'un détail précis. N'invente ni horaire, ni numéro de quai, ni prix exact.`;
+  }
   return null;
 }
 
@@ -87,7 +108,7 @@ export default async function handler(req, res) {
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model: process.env.ESCALE_MODEL || "claude-sonnet-5-5", max_tokens: 2500, messages: [{ role: "user", content }] }),
+      body: JSON.stringify({ model: process.env.ESCALE_MODEL || "claude-sonnet-5-5", max_tokens: b.kind === "around" ? 1800 : 2500, messages: [{ role: "user", content }] }),
     });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) return send(res, r.status === 429 ? 429 : 502, { error: (j.error && j.error.message) || "IA indisponible" });

@@ -12,7 +12,7 @@ Prototype d'origine : artifact claude.ai `c1848a2b-d5ee-4eec-a59e-ab274f8f8ba5` 
   - `me.js` : `POST {op:get|put,id,secret,doc}` — les voyages d'une personne. Fichier `escale/u/<id>/<hash(secret)>.json` (adresse impossible à deviner sans le secret).
   - `upload.js` : photo ou billet en corps brut (4 Mo max, jpeg/png/webp/gif/heic/pdf), en-tête `x-escale-id` → URL publique Blob (`escale/f/<id>/…`).
   - `share.js` : voyages partagés `escale/s/<code>.json`. GET `?code=` public (sans le champ `owner`) ; POST put/delete réservé à l'auteur (`owner = hash(id:secret)`).
-  - `ai.js` + `config.js` : « Compléter » une adresse, « Plus d'idées autour de moi » et **import de réservations** (`kind:"booking"` : texte d'e-mail ≤ 20 000 caractères + jusqu'à 3 billets PDF/images déjà envoyés, relus uniquement depuis notre stockage Blob `escale/f/`) via l'API Claude, seulement si `ANTHROPIC_API_KEY` est définie (modèle `ESCALE_MODEL`, défaut `claude-sonnet-5-5`). Consignes construites côté serveur. Sans clé, l'appli masque ces boutons.
+  - `ai.js` + `config.js` : « Compléter » une adresse, « Plus d'idées autour de moi » et **import de réservations** + recommandations (`kind:"around"` adresses autour d'un logement + sa position ; `kind:"tips"` conseils pour un trajet ; `kind:"booking"` : texte d'e-mail ≤ 20 000 caractères + jusqu'à 3 billets PDF/images déjà envoyés, relus uniquement depuis notre stockage Blob `escale/f/`) via l'API Claude, seulement si `ANTHROPIC_API_KEY` est définie (modèle `ESCALE_MODEL`, défaut `claude-sonnet-5-5`). Consignes construites côté serveur. Sans clé, l'appli masque ces boutons.
 - `sw.js` : hors connexion (appli, billets/photos déjà vus, fond de carte). `manifest.webmanifest` + `icons/` : installable sur l'écran d'accueil.
 - `countries-50m.json` (world-atlas 2.0.2) : compter les pays traversés (d3 + topojson chargés à la demande).
 - `vercel.json` : `/v/<code>` → `index.html` (lien public d'un voyage).
@@ -37,6 +37,8 @@ Prototype d'origine : artifact claude.ai `c1848a2b-d5ee-4eec-a59e-ab274f8f8ba5` 
 
 ## Fonctions
 - Import de réservations : « Importer » (accueil, onglet Réservations, menu +) → coller l'e-mail et/ou joindre PDF/capture → Claude extrait (un trajet = une réservation, hébergement = arrivée/départ) → écran de vérification (cases à cocher, choix du voyage : celui qui couvre les dates à ±2 jours, sinon nouveau voyage) → ajout avec le billet joint. Jamais de numéro de carte ni de mot de passe recopié.
+- Après un import : conseils pratiques générés pour chaque vol/train/bus/bateau (`booking.tips`, visibles dans la fiche du billet, bouton « Conseils pratiques » sinon) ; pour un hébergement, fenêtre « Autour de ton logement » (8 idées, cochées → wishlist ; cache `booking.around` ; position du logement `geoApprox`). Bouton « Autour du logement » dans la fiche de l'hébergement.
+- Carte jaune « À organiser » dans l'onglet Voyage (calcul local, sans IA) : nuits sans logement (sauf nuit de départ ou trajet de nuit), changement de ville entre deux logements sans trajet, pas de trajet retour.
 - Programme jour par jour, réservations + billets (hors connexion), adresses avec filtres.
 - « What now ? » : GPS (« Me localiser ») ou lieu choisi, temps dispo, envie → adresses enregistrées qui tiennent (marche 4,5 km/h ×1,3, sinon taxi), incontournables d'abord, radar SVG.
 - Carnet de route : étapes photos + récit, carte Leaflet (fond CARTO Voyager / OpenStreetMap) avec photos en épingles, vols en pointillés courbes, km / pays / étapes / photos.
