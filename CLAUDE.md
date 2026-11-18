@@ -2,6 +2,8 @@
 
 Appli web publique qui accompagne tout le voyage : **avant** (préparer), **pendant** (sur place), **après** (souvenirs, carnet de route partagé façon Polarsteps).
 Utilisable **sans compte et sans Claude** : hébergée sur Vercel (dépôt GitHub `guillaumeaspro/escale`, déploiement automatique depuis `main`).
+Adresse en ligne : **https://escale-amber.vercel.app** (projet Vercel `escale`, compte Hobby `guillaumeaspro`). Stockage : Blob `escale-blob` (public, région Paris cdg1), variables `BLOB_READ_WRITE_TOKEN` et `BLOB_STORE_ID`. L'appli Vercel de GitHub n'a accès qu'à une liste de dépôts choisis : `escale` y a été ajouté le 18/11/2026.
+Quotas Blob du plan gratuit à surveiller : environ 2 000 opérations avancées par mois (chaque sauvegarde d'un voyage et chaque republication d'un partage en direct en est une) ; si ça devient juste, espacer les sauvegardes ou regrouper les écritures.
 Le propriétaire (Guillaume) n'utilise que Claude en version web : Claude fait le code, les mises en ligne et les mises à jour.
 Prototype d'origine : artifact claude.ai `c1848a2b-d5ee-4eec-a59e-ab274f8f8ba5` (ancienne version, données propres à Claude).
 
