@@ -105,17 +105,22 @@ export default async function handler(req, res) {
       if (!p) return send(res, 400, { error: "Demande invalide" });
       content = p;
     }
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model: process.env.ESCALE_MODEL || "claude-sonnet-5-5", max_tokens: b.kind === "around" ? 1800 : 2500, messages: [{ role: "user", content }] }),
-    });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) return send(res, r.status === 429 ? 429 : 502, { error: (j.error && j.error.message) || "IA indisponible" });
-    const text = (j.content || []).map((c) => c.text || "").join("");
-    const m = text.match(/\{[\s\S]*\}/);
-    let out = null; try { out = m ? JSON.parse(m[0]) : null; } catch (_) {}
-    if (!out) return send(res, 502, { error: "Réponse illisible" });
+    // Deux essais : une réponse coupée ou un service momentanément saturé ne doivent pas faire échouer la demande.
+    let out = null, lastErr = null;
+    for (let attempt = 0; attempt < 2 && !out; attempt++) {
+      const r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
+        body: JSON.stringify({ model: process.env.ESCALE_MODEL || "claude-sonnet-5-5", max_tokens: 3000, messages: [{ role: "user", content }] }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { lastErr = { code: r.status === 429 ? 429 : 502, msg: (j.error && j.error.message) || "IA indisponible" }; if (r.status === 429 || r.status === 400) break; continue; }
+      const text = (j.content || []).map((c) => c.text || "").join("");
+      const m = text.match(/\{[\s\S]*\}/);
+      try { out = m ? JSON.parse(m[0]) : null; } catch (_) { out = null; }
+      if (!out) lastErr = { code: 502, msg: "Réponse illisible" };
+    }
+    if (!out) return send(res, lastErr ? lastErr.code : 502, { error: lastErr ? lastErr.msg : "IA indisponible" });
     return send(res, 200, { json: out });
   } catch (e) { return fail(res, e); }
 }
