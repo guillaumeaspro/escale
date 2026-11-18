@@ -277,7 +277,7 @@ async function photoMeta(f){if(!(f.type||'').startsWith('image')&&!/\.(jpe?g|hei
  try{const d=await ex.parse(f);const o={};if(d&&typeof d.latitude==='number'&&typeof d.longitude==='number'&&(d.latitude||d.longitude)){o.lat=+d.latitude.toFixed(6);o.lng=+d.longitude.toFixed(6)}
   const t=d&&(d.DateTimeOriginal||d.CreateDate);if(t instanceof Date&&!isNaN(t))o.taken=t.getFullYear()+'-'+pad2(t.getMonth()+1)+'-'+pad2(t.getDate())+'T'+pad2(t.getHours())+':'+pad2(t.getMinutes());return o}catch(e){return{}}}
 async function shrink(f){if(!/^image\/(jpeg|png|webp)/.test(f.type||'')||f.size<600000)return f;try{const b=await createImageBitmap(f);const k=Math.min(1,1800/Math.max(b.width,b.height));const c=document.createElement('canvas');c.width=Math.round(b.width*k);c.height=Math.round(b.height*k);c.getContext('2d').drawImage(b,0,0,c.width,c.height);const o=await new Promise(r=>c.toBlob(r,'image/jpeg',.85));return o&&o.size<f.size?o:f}catch(e){return f}}
-const mapsUrl=p=>hasG(p)?'https://www.google.com/maps/search/?api=1&query='+p.lat+','+p.lng:'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent((p.name||'')+' '+(p.city||''));
+const mapsUrl=p=>hasG(p)?'https://www.google.com/maps/search/?api=1&query='+p.lat+','+p.lng:'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(p.address||((p.name||p.title||'')+' '+(p.city||'')));
 
 /* ---------- logique voyage ---------- */
 function phase(t){const d=todayISO();if(!t.start)return'avant';if(d<t.start)return'avant';if(d<=t.end)return'pendant';return'apres'}
@@ -343,7 +343,7 @@ function renderHome(){const list=Object.values(S.trips).sort((a,b)=>(a.start||''
  const card=t=>{const[l,c]=phaseLabel(t);return`<button class="tcard" data-a="open" data-v="${t.id}"><span class="cv">${coverHTML(t,'')}</span><span><span class="big" style="display:block">${esc(t.name)}</span><small>${esc(fmtD(t.start,{weekday:undefined}))} → ${esc(fmtD(t.end,{weekday:undefined}))}${t.live&&t.shareCode?' · <b style="color:var(--red)">en direct</b>':''}</small></span><span class="cd">${esc(c)}</span></button>`};
  return`<h1 style="margin-top:8px">Tes voyages, de la préparation aux souvenirs.</h1>
  <p class="mute" style="max-width:56ch">Programme, billets et adresses au même endroit ; « What now ? » sur place ; un carnet de route à suivre en direct par tes proches.</p>${installCard()}
- <div class="row" style="margin:16px 0 4px"><button class="btn r" data-a="newTrip">Nouveau voyage</button>${list.length?'':'<button class="btn" data-a="examples">Voir un exemple</button>'}</div>
+ <div class="row" style="margin:16px 0 4px"><button class="btn r" data-a="newTrip">Nouveau voyage</button>${S.sample?'<button class="btn" data-a="importBk">Importer une réservation</button>':''}${list.length?'':'<button class="btn" data-a="examples">Voir un exemple</button>'}</div>
  ${list.length?'':'<div class="empty" style="margin-top:18px">Aucun voyage pour l’instant. Crée le tien, ou charge l’exemple (Thaïlande & Laos en décembre, plus un week-end à Lisbonne déjà terminé) pour tester toutes les fonctions.</div>'}
  ${up.length?'<h2>À venir</h2>'+up.map(card).join(''):''}${past.length?'<h2>Voyages passés</h2>'+past.map(card).join(''):''}
  ${S.follow.length?'<h2>Voyages que tu suis</h2>'+S.follow.map(r=>`<button class="tcard" data-a="openRecap" data-v="${esc(r.code)}"><span class="cv">${coverSVG(r.code)}</span><span><span class="big" style="display:block">${esc(r.name)}</span><small>${esc(r.by?'par '+r.by:'')}</small></span><span>${r.live?'<span class="live">En direct</span>':'<span class="cd">Voir</span>'}</span></button>`).join(''):''}
@@ -374,8 +374,8 @@ function renderPrep(t){const subs=[['prog','Programme'],['bk','Réservations']];
   <label class="f" for="dn-${d}" style="font-weight:500;color:var(--mute)">Ville / notes du jour</label><div class="g2"><input id="dc-${d}" data-c="dayCity" data-v="${d}" value="${esc((t.dayCity||{})[d]||'')}" placeholder="${esc(c||'Ville')}"><input id="dn-${d}" data-c="dayNote" data-v="${d}" value="${esc((t.dayNote||{})[d]||'')}" placeholder="Note rapide"></div></article>`}).join('')}
 
 function renderBookings(t){const bs=(t.bookings||[]).slice().sort((a,b)=>((a.date||'9')+(a.time||''))<((b.date||'9')+(b.time||''))?-1:1);
- return`<div class="row" style="justify-content:space-between;margin-top:8px"><h2 style="margin:0">Réservations & billets</h2><button class="btn r s" data-a="addBk">+ Réservation</button></div>
- ${bs.length?'<div class="card"><ol class="items">'+bs.map(b=>`<li class="it" data-a="editBk" data-v="${b.id}" tabindex="0"><time>${esc(b.date?fmtD(b.date,{weekday:undefined}):'—')}</time><span class="dot" style="color:var(--blue)"></span><div><b>${esc(bTitle(b))}</b><small>${esc(BT[b.type])}${b.time?' · '+esc(b.time):''}${b.type==='hotel'&&b.endDate?' · jusqu’au '+fmtD(b.endDate,{weekday:undefined}):''}${b.ref?' · réf. '+esc(b.ref):''}</small></div>${(b.files||[]).length?'<span class="tag side">'+b.files.length+' fichier'+(b.files.length>1?'s':'')+'</span>':'<span></span>'}</li>`).join('')+'</ol></div>':'<div class="empty" style="margin-top:12px">Vols, trains, hôtels, activités réservées : ajoute-les avec leur référence et le billet (PDF ou capture). Ils apparaîtront dans ton programme et le jour J dans « Sur place ».</div>'}`}
+ return`<div class="row" style="justify-content:space-between;margin-top:8px"><h2 style="margin:0">Réservations & billets</h2><span class="row" style="gap:6px"><button class="btn s" data-a="importBk">Importer</button><button class="btn r s" data-a="addBk">+ Ajouter</button></span></div>
+ ${bs.length?'<div class="card"><ol class="items">'+bs.map(b=>`<li class="it" data-a="editBk" data-v="${b.id}" tabindex="0"><time>${esc(b.date?fmtD(b.date,{weekday:undefined}):'—')}</time><span class="dot" style="color:var(--blue)"></span><div><b>${esc(bTitle(b))}</b><small>${esc(BT[b.type])}${b.time?' · '+esc(b.time):''}${b.type==='hotel'&&b.endDate?' · jusqu’au '+fmtD(b.endDate,{weekday:undefined}):''}${b.ref?' · réf. '+esc(b.ref):''}</small></div>${(b.files||[]).length?'<span class="tag side">'+b.files.length+' fichier'+(b.files.length>1?'s':'')+'</span>':'<span></span>'}</li>`).join('')+'</ol></div>':'<div class="empty" style="margin-top:12px">Le plus simple : touche « Importer » et colle l’e-mail de confirmation, ou ajoute le PDF ou une capture du billet. L’appli remplit la réservation toute seule. Tu peux aussi la saisir à la main. Ils apparaîtront dans ton programme et le jour J dans « Sur place ».</div>'}`}
 
 function placeRow(p,act){const c=CATS[p.cat];return`<div class="pl"><span class="dot" style="color:${c.c}"></span><div><b>${esc(p.name)}</b> ${p.must?'<span class="tag must">Incontournable</span>':''} ${p.status==='reserve'?'<span class="tag res">Réservé</span>':''}<div class="note">${esc(c.l)}${p.city?' · '+esc(p.city):''}${p.area?' · '+esc(p.area):''}${p.date?' · '+fmtD(p.date)+(p.time?' '+esc(p.time):''):' · wishlist'}${p.visited?' · fait':''}</div>${p.note?`<div class="note">${esc(p.note)}</div>`:''}</div><div class="row" style="justify-content:flex-end">${act||`<button class="btn s g" data-a="editPlace" data-v="${p.id}">Modifier</button>`}</div></div>`}
 function renderPlaces(t){const ps=t.places||[],cities=[...new Set(ps.map(p=>p.city).filter(Boolean))].sort(),f=S.f;
@@ -531,10 +531,11 @@ function bkForm(t,b){b=b||{type:'vol'};const tr=['vol','train','bus','bateau'].i
  <div><label class="f" for="bd">Date${b.type==='hotel'?' d’arrivée':''}</label><select id="bd" name="date">${dayOpts(t,b.date,'Sans date')}</select></div><div><label class="f" for="bh">Heure</label><input id="bh" type="time" name="time" value="${esc(b.time||'')}"></div>
  <div><label class="f" for="be">Date de fin / check-out</label><select id="be" name="endDate">${dayOpts(t,b.endDate,'—')}</select></div><div><label class="f" for="bv">Ville (hébergement)</label><input id="bv" name="city" value="${esc(b.city||'')}"></div></div>
  <label class="f" for="br">Référence / n° de réservation</label><input id="br" name="ref" value="${esc(b.ref||'')}" autocomplete="off">
- <label class="f" for="bg">Adresse : lien Google Maps ou « lat, lng »</label><input id="bg" name="geo" value="${hasG(b)?b.lat+', '+b.lng:''}">
+ <label class="f" for="ba">Adresse</label><input id="ba" name="address" value="${esc(b.address||'')}" placeholder="Pour un hébergement ou une activité">
+ <label class="f" for="bg">Position : lien Google Maps ou « lat, lng »</label><input id="bg" name="geo" value="${hasG(b)?b.lat+', '+b.lng:''}">
  <label class="f" for="bo">Infos utiles</label><textarea id="bo" name="note" placeholder="Terminal, siège, check-in en ligne…">${esc(b.note||'')}</textarea>${uploadBox('files',b.files)}`;
  openModal(b.id?'Modifier la réservation':'Nouvelle réservation',html,fd=>{const g=parseGeo(fd.get('geo'));
-  const n=Object.assign(b,{id:b.id||rid(),type:fd.get('type'),title:fd.get('title').trim(),from:fd.get('from').trim(),to:fd.get('to').trim(),date:fd.get('date'),time:fd.get('time'),endDate:fd.get('endDate'),city:fd.get('city').trim(),ref:fd.get('ref').trim(),note:fd.get('note').trim(),lat:g?g.lat:null,lng:g?g.lng:null,files:M.files||b.files||[]});
+  const n=Object.assign(b,{id:b.id||rid(),type:fd.get('type'),title:fd.get('title').trim(),from:fd.get('from').trim(),to:fd.get('to').trim(),date:fd.get('date'),time:fd.get('time'),endDate:fd.get('endDate'),city:fd.get('city').trim(),address:fd.get('address').trim(),ref:fd.get('ref').trim(),note:fd.get('note').trim(),lat:g?g.lat:null,lng:g?g.lng:null,files:M.files||b.files||[]});
   t.bookings=t.bookings||[];if(!t.bookings.includes(n))t.bookings.push(n);save(t);toast('Réservation enregistrée')},b.id?`<button type="button" class="btn g" data-a="delBk" data-v="${b.id}">Supprimer</button>`:'')}
 function tripForm(t){const n=!t;t=t||{};const d=todayISO();
  openModal(n?'Nouveau voyage':'Le voyage',`<label class="f" for="tn">Nom du voyage</label><input id="tn" name="name" required value="${esc(t.name||'')}" placeholder="Thaïlande & Laos">
@@ -567,8 +568,8 @@ function memoForm(t,p){const html=`<p class="mute" style="margin:0">${esc(CATS[p
  openModal(esc(p.name),html,fd=>{Object.assign(p,{visited:!!fd.get('visited'),visitedOn:fd.get('on'),rating:+fd.get('rating')||0,fav:!!fd.get('fav'),comment:fd.get('comment').trim(),photos:M.files||p.photos||[]});save(t);toast('Souvenir enregistré')})}
 function ticketView(t,b){$('#md').innerHTML=`<header><h2>${esc(bTitle(b))}</h2><button type="button" class="x" data-a="close" aria-label="Fermer">×</button></header>
  <div class="ticket"><div class="mute">${esc(BT[b.type])}${b.date?' · '+cap(fmtD(b.date,{month:'long'})):''}${b.time?' · '+esc(b.time):''}</div>${b.ref?`<div class="ref">${esc(b.ref)}</div><div class="mute">référence</div>`:''}${b.type==='hotel'&&b.endDate?`<p>Jusqu’au ${fmtD(b.endDate,{month:'long'})}${b.endTime?' '+esc(b.endTime):''}</p>`:''}</div>
- ${b.note?`<p>${esc(b.note)}</p>`:''}<div class="files">${(b.files||[]).map(f=>(f.type||'').startsWith('image')?`<img src="${esc(fileUrl(f))}" alt="${esc(f.name)}">`:`<a href="${esc(fileUrl(f))}" target="_blank" rel="noopener">Ouvrir ${esc(f.name||'le billet')}</a>`).join('')}</div>
- <div class="foot"><button class="btn p" data-a="editBk" data-v="${b.id}">Modifier</button>${hasG(b)?`<a class="btn g" href="${mapsUrl(b)}" target="_blank" rel="noopener">Itinéraire</a>`:''}<button class="btn g" data-a="close">Fermer</button></div>`;$('#ov').classList.add('on')}
+ ${b.address?`<p><b>Adresse</b><br>${esc(b.address)}</p>`:''}${b.note?`<p style="white-space:pre-wrap">${esc(b.note)}</p>`:''}<div class="files">${(b.files||[]).map(f=>(f.type||'').startsWith('image')?`<img src="${esc(fileUrl(f))}" alt="${esc(f.name)}">`:`<a href="${esc(fileUrl(f))}" target="_blank" rel="noopener">Ouvrir ${esc(f.name||'le billet')}</a>`).join('')}</div>
+ <div class="foot"><button class="btn p" data-a="editBk" data-v="${b.id}">Modifier</button>${hasG(b)||b.address?`<a class="btn g" href="${mapsUrl(b)}" target="_blank" rel="noopener">Itinéraire</a>`:''}<button class="btn g" data-a="close">Fermer</button></div>`;$('#ov').classList.add('on')}
 
 /* ---------- Claude ---------- */
 async function aiCall(b){const r=await api('/api/ai',Object.assign({id:ME.id},b));return r.json}
@@ -585,6 +586,43 @@ async function more(){const t=T(),d=S.now.day,here=herePos(t,d);if(!here)return;
  try{const r=await aiCall({kind:'nearby',lat:here.lat,lng:here.lng,city:cityOf(t,d)||t.dest,mins:S.now.mins,want:S.now.want,time:nowHM()+' le '+fmtD(todayISO(),{month:'long'}),exclude:(t.places||[]).map(p=>p.name),prefs:lsGet('escale.prefs','')});
   S.sug=((r&&r.items)||[]).filter(x=>x&&x.name).slice(0,6).map(x=>{const o={name:String(x.name),cat:CATS[x.cat]?x.cat:'autre',area:x.area||'',why:x.why||'',lat:typeof x.lat==='number'?x.lat:null,lng:typeof x.lng==='number'?x.lng:null,city:(cityOf(t,d)||'').split('→').pop().trim()};if(hasG(o)){const k=km(here,o),tr=travel(k);o.trav=fmtMin(tr.min)+' '+tr.how}return o})}
  catch(e){S.sug=null;toast(e&&e.status===429?'Trop de demandes, réessaie dans un moment.':'Suggestions indisponibles pour le moment.')}render()}
+
+/* ---------- import de réservations ---------- */
+const sortTrips=()=>Object.values(S.trips).sort((a,b)=>(a.start||'')<(b.start||'')?-1:1);
+function tripFor(bks){const d=(bks.find(b=>b.date)||{}).date;if(!d)return S.tripId&&T()?S.tripId:'';
+ const ins=sortTrips().filter(t=>t.start&&addDays(t.start,-2)<=d&&d<=addDays(t.end,2));if(S.tripId&&ins.some(t=>t.id===S.tripId))return S.tripId;return ins.length?ins[0].id:'new'}
+function importForm(){if(!S.sample){openModal('Importer une réservation','<p>La lecture automatique des réservations n’est pas encore activée sur cette version de l’appli. En attendant, saisis-la à la main.</p>',()=>{},'<button type="button" class="btn r" data-a="addBk">Saisir à la main</button>');return}
+ openModal('Importer une réservation',`<p class="mute" style="margin-top:0">Vol, train, bus, hôtel, Airbnb, location… Colle l’e-mail de confirmation, ou ajoute le billet en PDF ou en capture. Les dates, la référence et l’adresse se remplissent toutes seules.</p>
+ <label class="f" for="it">Texte de l’e-mail</label><textarea id="it" name="text" style="min-height:150px" placeholder="Ouvre l’e-mail de confirmation, sélectionne tout, copie, puis colle ici."></textarea>
+ ${uploadBox('files',[])}<div class="hint" id="imh"></div>`,async fd=>{
+  const text=String(fd.get('text')||'').trim(),files=(M.files||[]).slice();if(!text&&!files.length){toast('Colle un e-mail ou ajoute un billet.');return false}
+  const btn=$('#mf .foot .btn.p');if(btn){btn.disabled=true;btn.textContent='Lecture en cours…'}$('#imh').textContent='Lecture de la réservation : quelques secondes…';
+  try{const r=await aiCall({kind:'booking',text,files:files.map(f=>f.url).filter(Boolean),today:todayISO(),trips:sortTrips().map(t=>({name:t.name,start:t.start,end:t.end}))});
+   const bks=((r&&r.bookings)||[]).filter(b=>b&&BT[b.type]);
+   if(!bks.length){$('#imh').textContent=(r&&r.warning)||'Aucune réservation trouvée dans ce document.';if(btn){btn.disabled=false;btn.textContent='Réessayer'}return false}
+   M.imp={bks:bks.map(b=>Object.assign({},b,{id:rid()})),files};setTimeout(importReview,30)}
+  catch(e){$('#imh').textContent=e.status===501?'La lecture automatique n’est pas activée.':e.status===429?'Trop de demandes : réessaie dans une minute.':'Lecture impossible pour le moment : '+(e.message||'réessaie.');if(btn){btn.disabled=false;btn.textContent='Réessayer'}return false}})
+ const b=$('#mf .foot .btn.p');if(b)b.textContent='Lire la réservation'}
+function importReview(){const im=M.imp;if(!im)return;const files=im.files,bks=im.bks,def=tripFor(bks);
+ const ds=bks.map(b=>b.date).filter(Boolean).sort(),dmin=ds[0]||'',dmax=bks.map(b=>b.endDate||b.date).filter(Boolean).sort().pop()||dmin;
+ const card=(b,i)=>`<label class="card" style="display:grid;grid-template-columns:24px minmax(0,1fr);gap:10px;margin:8px 0;cursor:pointer"><input type="checkbox" name="k${i}" checked style="width:22px;min-height:22px;margin-top:3px"><span>
+  <small style="font-weight:800;color:var(--red)">${esc(BT[b.type])}${b.date?' · '+esc(cap(fmtD(b.date,{month:'long'}))):''}${b.time?' · '+esc(b.time):''}</small>
+  <b style="display:block;font-size:17px">${esc(['vol','train','bus','bateau'].includes(b.type)&&(b.from||b.to)?(b.from||'?')+' → '+(b.to||'?'):(b.title||BT[b.type]))}</b>
+  <small class="mute">${esc([['vol','train','bus','bateau'].includes(b.type)?b.title:'',b.endDate?(b.type==='hotel'?'jusqu’au ':'retour le ')+fmtD(b.endDate,{month:'long'})+(b.endTime?' '+b.endTime:''):'',b.city&&b.type!=='vol'?b.city:'',b.ref?'réf. '+b.ref:''].filter(Boolean).join(' · '))}</small>
+  ${b.address?`<small class="mute" style="display:block">${esc(b.address)}</small>`:''}${b.note?`<small class="mute" style="display:block">${esc(b.note)}</small>`:''}</span></label>`;
+ const opts=sortTrips().map(t=>`<option value="${t.id}"${t.id===def?' selected':''}>${esc(t.name)} (${fmtD(t.start,{weekday:undefined})} → ${fmtD(t.end,{weekday:undefined})})</option>`).join('');
+ const guess=(bks.find(b=>b.type==='hotel'&&b.city)||{}).city||(bks.find(b=>b.to)||{}).to||'Nouveau voyage';
+ openModal(bks.length>1?bks.length+' réservations trouvées':'Réservation trouvée',`<p class="mute" style="margin-top:0">Vérifie, décoche ce qui ne va pas, puis ajoute. Tu pourras tout modifier ensuite.</p>${bks.map(card).join('')}
+ <label class="f" for="itp">Dans quel voyage ?</label><select id="itp" name="trip">${opts}<option value="new"${def==='new'||!opts?' selected':''}>Nouveau voyage${dmin?' ('+fmtD(dmin,{weekday:undefined})+' → '+fmtD(dmax,{weekday:undefined})+')':''}</option></select>
+ <label class="f" for="itn">Nom du nouveau voyage</label><input id="itn" name="tname" value="${esc(String(guess).replace(/\s*\(.*$/,''))}">
+ ${files.length?`<p class="hint">Le billet est joint à ${bks.length>1?'chaque réservation':'la réservation'} : tu l’auras même sans réseau.</p>`:''}`,fd=>{
+  const keep=bks.filter((b,i)=>fd.get('k'+i));if(!keep.length){toast('Rien à ajouter');return false}
+  let t,tid=fd.get('trip');if(tid==='new'||!S.trips[tid]){const st=dmin||todayISO();t={id:rid(),name:String(fd.get('tname')||'').trim()||'Nouveau voyage',dest:'',start:st,end:dmax&&dmax>=st?dmax:st,places:[],bookings:[],steps:[],dayCity:{},dayNote:{},created:Date.now()}}else t=S.trips[tid];
+  t.bookings=t.bookings||[];keep.forEach(b=>{t.bookings.push({id:rid(),type:b.type,title:String(b.title||'').slice(0,80),from:String(b.from||'').slice(0,80),to:String(b.to||'').slice(0,80),date:/^\d{4}-\d\d-\d\d$/.test(b.date||'')?b.date:'',time:/^\d\d:\d\d$/.test(b.time||'')?b.time:'',endDate:/^\d{4}-\d\d-\d\d$/.test(b.endDate||'')?b.endDate:'',endTime:/^\d\d:\d\d$/.test(b.endTime||'')?b.endTime:'',city:String(b.city||'').slice(0,60),address:String(b.address||'').slice(0,200),ref:String(b.ref||'').slice(0,40),note:String(b.note||'').slice(0,400),files:files.slice(),lat:null,lng:null,imported:true});
+   if(b.type==='hotel'&&b.city&&b.date){t.dayCity=t.dayCity||{}}});
+  const out=keep.map(b=>b.date).filter(d=>d&&(d<t.start||d>t.end));
+  save(t);M.imp=null;S.tripId=t.id;S.view='trip';S.tab='voyage';S.sub='bk';toast(keep.length>1?keep.length+' réservations ajoutées':'Réservation ajoutée');
+  if(out.length)setTimeout(()=>toast('Attention : une date tombe hors des dates du voyage.'),2900)})}
 
 /* ---------- partage ---------- */
 const shareUrl=c=>location.origin+'/v/'+c;
@@ -689,12 +727,13 @@ const A={
  addMenu(){const t=T();$('#md').innerHTML=`<header><h2>Ajouter</h2><button type="button" class="x" data-a="close" aria-label="Fermer">×</button></header><div class="acts">
   <button class="act" data-a="addStep"><span class="ic" style="background:var(--red)">${ic('camera','#fff',24,2.2)}</span><span><b>Publier une étape</b><small class="mute">Photos, lieu et récit pour ton carnet</small></span></button>
   <button class="act" data-a="addPlace"><span class="ic" style="background:var(--sun)">${ic('pin','#0f3d3e',24,2.2)}</span><span><b>Une adresse</b><small class="mute">Resto, bar, visite… réservée ou en envie</small></span></button>
-  <button class="act" data-a="addBk"><span class="ic" style="background:var(--teal)">${ic('ticket','#fff',24,2.2)}</span><span><b>Une réservation</b><small class="mute">Vol, train, hôtel, activité + billet</small></span></button></div>`;$('#ov').classList.add('on')},
+  <button class="act" data-a="importBk"><span class="ic" style="background:var(--teal)">${ic('ticket','#fff',24,2.2)}</span><span><b>Importer une réservation</b><small class="mute">Colle l’e-mail de confirmation ou ajoute le billet : tout se remplit seul</small></span></button>
+  <button class="act" data-a="addBk"><span class="ic" style="background:var(--panel2)">${ic('plus','currentColor',24,2.2)}</span><span><b>Saisir une réservation à la main</b><small class="mute">Vol, train, hôtel, activité + billet</small></span></button></div>`;$('#ov').classList.add('on')},
  sub(v){S.sub=v;render()},
  addPlace(){placeForm(T())},addToDay(v){placeForm(T(),null,{date:v,time:''})},
  editPlace(v){const p=T().places.find(x=>x.id===v);if(p)placeForm(T(),p)},
  delPlace(v){const b=$('#md [data-a=delPlace]');if(!b.dataset.ok){b.dataset.ok=1;b.textContent='Confirmer';b.classList.add('r');return}const t=T();t.places=t.places.filter(x=>x.id!==v);save(t);closeModal();render()},
- addBk(){bkForm(T())},editBk(v){const b=T().bookings.find(x=>x.id===v);if(b)bkForm(T(),b)},
+ addBk(){if(!T()){toast('Ouvre d’abord un voyage.');return}bkForm(T())},importBk(){importForm()},editBk(v){const b=T().bookings.find(x=>x.id===v);if(b)bkForm(T(),b)},
  delBk(v){const b=$('#md [data-a=delBk]');if(!b.dataset.ok){b.dataset.ok=1;b.textContent='Confirmer';b.classList.add('r');return}const t=T();t.bookings=t.bookings.filter(x=>x.id!==v);save(t);closeModal();render()},
  ticket(v){const b=T().bookings.find(x=>x.id===v);if(b)ticketView(T(),b)},
  wishCity(v){S.tab='adresses';const c=(T().places||[]).map(p=>p.city).find(x=>x&&v.toLowerCase().includes(x.toLowerCase()));S.f={cat:'all',st:'wish',city:c||'all',q:''};render();window.scrollTo(0,0)},
