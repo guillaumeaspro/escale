@@ -13,9 +13,11 @@ export default async function handler(req, res) {
     const lat = num(u.searchParams.get("lat")), lon = num(u.searchParams.get("lon"));
     const p = new URLSearchParams({ q, limit: "6", lang: "fr" });
     if (lat != null && lon != null && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) { p.set("lat", lat.toFixed(3)); p.set("lon", lon.toFixed(3)); }
-    const r = await fetch("https://photon.komoot.io/api/?" + p, { headers: { "User-Agent": "Escale carnet de voyage (escale-amber.vercel.app)" } });
-    if (!r.ok) return send(res, 502, { error: "Recherche indisponible" });
-    const j = await r.json();
+    const ask = async (lang) => { p.set("lang", lang); const r = await fetch("https://photon.komoot.io/api/?" + p, { headers: { "User-Agent": "Escale carnet de voyage (escale-amber.vercel.app)" } }); if (!r.ok) throw Object.assign(new Error("Recherche indisponible"), { status: 502 }); return r.json(); };
+    // Noms en français quand ils existent ; sinon (Asie, etc.) on retente en anglais plutôt que d'afficher l'écriture locale.
+    let j = await ask("fr");
+    const local = (fs) => fs.length && fs.filter((f) => /[^\u0000-\u024F\u1E00-\u1EFF\s\d.,'’()&\-–]/.test((f.properties || {}).name || "")).length >= fs.length / 2;
+    if (local(j.features || [])) { try { const k = await ask("en"); if ((k.features || []).length) j = k; } catch (_) {} }
     const items = (j.features || []).map((f) => {
       const pr = f.properties || {}, c = (f.geometry && f.geometry.coordinates) || [];
       const street = [pr.housenumber, pr.street].filter(Boolean).join(" ");
