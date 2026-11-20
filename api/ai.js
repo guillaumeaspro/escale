@@ -32,11 +32,12 @@ function bookingPrompt(b) {
   return `Tu extrais des réservations de voyage à partir d'un e-mail de confirmation, d'un billet PDF ou d'une capture d'écran, pour une appli de carnet de voyage.
 Date du jour : ${s(b.today, 10)}. Voyages de la personne : ${trips || "aucun"} (sert à deviner l'année si elle manque).
 Réponds uniquement par un objet JSON :
-{"bookings":[{"type":"vol|train|bus|bateau|hotel|activite|location|autre","title":"compagnie, n° de vol/train ou nom de l'hébergement","from":"ville ou gare/aéroport de départ","to":"ville ou gare/aéroport d'arrivée","date":"AAAA-MM-JJ","time":"HH:MM","endDate":"AAAA-MM-JJ","endTime":"HH:MM","city":"ville (hébergement, activité, location)","address":"adresse complète si présente","ref":"référence ou numéro de réservation","note":"infos utiles courtes en français : n° de vol ou de train, voiture et place, terminal, heure d'arrivée, nombre de voyageurs, conditions d'annulation"}],"warning":""}
+{"bookings":[{"type":"vol|train|bus|bateau|hotel|resto|bar|visite|spectacle|activite|location|autre","custom":"si type autre : le type précis en 1 à 3 mots","title":"compagnie, n° de vol/train ou nom de l'hébergement","from":"ville ou gare/aéroport de départ","to":"ville ou gare/aéroport d'arrivée","date":"AAAA-MM-JJ","time":"HH:MM","endDate":"AAAA-MM-JJ","endTime":"HH:MM","city":"ville (hébergement, activité, location)","address":"adresse complète si présente","ref":"référence ou numéro de réservation","note":"infos utiles courtes en français : n° de vol ou de train, voiture et place, terminal, heure d'arrivée, nombre de voyageurs, conditions d'annulation"}],"warning":""}
 Règles :
 - Un trajet = une réservation : aller et retour séparés, et chaque vol ou train d'une correspondance séparé.
 - Hôtel, Airbnb, auberge, location d'appartement : type "hotel", date = arrivée, endDate = départ, time = heure d'arrivée possible, endTime = heure de départ limite.
 - Location de voiture ou de scooter : type "location", date = prise, endDate = retour.
+- Table au restaurant : "resto" ; bar, club, soirée : "bar" ; musée, monument, visite guidée : "visite" ; concert, spectacle, match : "spectacle" ; cours, excursion, plongée, massage… : "activite".
 - Garde les heures locales telles qu'écrites. Laisse un champ vide ("") s'il n'est pas dans le document. N'invente rien.
 - Ne recopie jamais un numéro de carte bancaire, un code d'accès ou un mot de passe.
 - Si ce n'est pas une réservation de voyage, renvoie "bookings":[] et explique en une phrase dans "warning".
